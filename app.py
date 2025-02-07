@@ -84,5 +84,16 @@ def read_meal(id_meal):
     return jsonify({"message": "Refeição não encontrada"}), 404
 
 
+@app.route("/meal/<int:id_meal>", methods=["DELETE"])
+def delete_meal(id_meal):
+    meal = Meal.query.get(id_meal)
+    if meal:
+        db.session.delete(meal)
+        db.session.commit()
+        return jsonify({"message": f"Refeição {id_meal} deletada com sucesso"})
+
+    return jsonify({"message": "Refeição não encontrada nesse ID"}), 404
+
+
 if __name__ == "__main__":
     app.run(debug=True)
