@@ -70,14 +70,14 @@ def get_all_meals():
 
 @app.route("/meal/<int:id_meal>", methods=["GET"])
 def read_meal(id_meal):
-    meal_data = Meal.query.get(id_meal)
-    if meal_data:
+    meal = Meal.query.get(id_meal)
+    if meal:
         return jsonify(
             {
-                "name": meal_data.name,
-                "description": meal_data.description,
-                "date_time": meal_data.date_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "within_diet": meal_data.within_diet,
+                "name": meal.name,
+                "description": meal.description,
+                "date_time": meal.date_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "within_diet": meal.within_diet,
             }
         )
 
@@ -93,6 +93,34 @@ def delete_meal(id_meal):
         return jsonify({"message": f"Refeição {id_meal} deletada com sucesso"})
 
     return jsonify({"message": "Refeição não encontrada nesse ID"}), 404
+
+
+@app.route("/meal/<int:id_meal>", methods=["PUT"])
+def update_meal(id_meal):
+    data = request.get_json()
+    meal = Meal.query.get(id_meal)
+
+    if data and meal:
+        meal.name = data.get("name")
+        meal.description = data.get("description")
+        meal.date_time = datetime.strptime(data.get("date_time"), "%Y-%m-%d %H:%M:%S")
+        meal.within_diet = data.get("within_diet")
+
+        db.session.commit()
+
+        return (
+            jsonify(
+                {
+                    "message": f"A refeição '{meal.name}' foi atualizada com sucesso!",
+                    "description": meal.description,
+                    "date_time": meal.date_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "within_diet": meal.within_diet,
+                }
+            ),
+            200,
+        )
+
+    return jsonify({"error": "Refeição não encontrada"}), 400
 
 
 if __name__ == "__main__":
