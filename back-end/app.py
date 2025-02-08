@@ -11,6 +11,10 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
 
+with app.app_context():
+    db.create_all()
+
+
 @app.route("/meal", methods=["POST"])
 def create_meal():
     data = request.get_json()

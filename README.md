@@ -1,2 +1,2 @@
 # daily-diet-api
-Api desenvolvida em python com o framework Flask.
+API desenvolvida em Python com Flask, utilizando o ORM SQLAlchemy para a conexão com o banco de dados.
