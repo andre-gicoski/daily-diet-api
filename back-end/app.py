@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from models.meal import Meal
 from database import db
-from datetime import datetime
+from models.schema import MealSchema
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///daily_diet.db"
@@ -21,95 +21,64 @@ def verify_key():
     return None
 
 
+def handle_error(exception, data):
+    return (
+        jsonify(
+            {"error": f"Ocorreu um erro: {str(exception)}", "dados_enviados": data}
+        ),
+        400,
+    )
+
+
 @app.route("/meal", methods=["POST"])
 def create_meal():
-    auth = verify_key()
-    if auth:
-        return auth
+    if verify_key():
+        return verify_key()
 
     data = request.get_json()
+    meal_schema = MealSchema()
 
-    name = data.get("name")
-    description = data.get("description")
-    date_time = data.get("date_time")
-    within_diet = data.get("within_diet")
-
-    if name and description and date_time and within_diet is not None:
-        try:
-            date_time = datetime.strptime(date_time, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            return (
-                jsonify(
-                    {
-                        "message": "Formato de data inválido. Use o formato 'YYYY-MM-DD HH:MM:SS'."
-                    }
-                ),
-                400,
-            )
-
-        new_meal = Meal(
-            name=name,
-            description=description,
-            date_time=date_time,
-            within_diet=within_diet,
-        )
-
+    try:
+        new_meal = meal_schema.load(data, session=db.session)
         db.session.add(new_meal)
         db.session.commit()
-
-        return jsonify({"message": "Refeição cadastrada com sucesso"}), 201
-
-    return jsonify({"message": "Dados inválidos"}), 400
+        return jsonify(meal_schema.dump(new_meal)), 201
+    except Exception as e:
+        return handle_error(e, data)
 
 
 @app.route("/meal", methods=["GET"])
 def get_all_meals():
-    auth = verify_key()
-    if auth:
-        return auth
-    meals = Meal.query.all()
+    if verify_key():
+        return verify_key()
 
+    meals = Meal.query.all()
     if meals:
-        return jsonify(
-            [
-                {
-                    "name": meal.name,
-                    "description": meal.description,
-                    "date_time": meal.date_time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "within_diet": meal.within_diet,
-                }
-                for meal in meals
-            ]
-        )
+        meal_schema = MealSchema(many=True)
+        return jsonify(meal_schema.dump(meals))
 
     return jsonify({"message": "Nenhuma refeição encontrada"}), 404
 
 
 @app.route("/meal/<int:id_meal>", methods=["GET"])
 def read_meal(id_meal):
-    auth = verify_key()
-    if auth:
-        return auth
-    meal = db.session.get(Meal, id_meal) 
+    if verify_key():
+        return verify_key()
+
+    meal = db.session.get(Meal, id_meal)
     if meal:
-        return jsonify(
-            {
-                "name": meal.name,
-                "description": meal.description,
-                "date_time": meal.date_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "within_diet": meal.within_diet,
-            }
-        )
+        meal_schema = MealSchema()
+        return jsonify(meal_schema.dump(meal))
 
     return jsonify({"message": "Refeição não encontrada"}), 404
 
 
 @app.route("/meal/<int:id_meal>", methods=["DELETE"])
 def delete_meal(id_meal):
-    auth = verify_key()
-    if auth:
-        return auth
-    meal = db.session.get(Meal, id_meal) 
+    if verify_key():
+        return verify_key()
+
+    meal = db.session.get(Meal, id_meal)
     if meal:
         db.session.delete(meal)
         db.session.commit()
@@ -120,33 +89,22 @@ def delete_meal(id_meal):
 
 @app.route("/meal/<int:id_meal>", methods=["PUT"])
 def update_meal(id_meal):
-    auth = verify_key()
-    if auth:
-        return auth
+    if verify_key():
+        return verify_key()
+
     data = request.get_json()
     meal = db.session.get(Meal, id_meal)
 
-    if data and meal:
-        meal.name = data.get("name")
-        meal.description = data.get("description")
-        meal.date_time = datetime.strptime(data.get("date_time"), "%Y-%m-%d %H:%M:%S")
-        meal.within_diet = data.get("within_diet")
+    if not meal:
+        return jsonify({"error": "Refeição não encontrada com o ID especificado"}), 404
 
+    meal_schema = MealSchema()
+    try:
+        meal_schema.load(data, instance=meal, session=db.session, partial=True)
         db.session.commit()
-
-        return (
-            jsonify(
-                {
-                    "message": f"A refeição '{meal.name}' foi atualizada com sucesso!",
-                    "description": meal.description,
-                    "date_time": meal.date_time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "within_diet": meal.within_diet,
-                }
-            ),
-            200,
-        )
-
-    return jsonify({"error": "Refeição não encontrada"}), 400
+        return jsonify(meal_schema.dump(meal)), 200
+    except Exception as e:
+        return handle_error(e, data)
 
 
 if __name__ == "__main__":
