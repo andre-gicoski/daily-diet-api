@@ -4,19 +4,29 @@ from database import db
 from datetime import datetime
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "your_secret_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///daily_diet.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+API_KEYS = {"secret-key"}
 
 db.init_app(app)
-
 
 with app.app_context():
     db.create_all()
 
 
+def verify_key():
+    key = request.headers.get("X-API-KEY")
+    if key not in API_KEYS:
+        return jsonify({"erro": "Acesso negado, chave inválida"}), 403
+    return None
+
+
 @app.route("/meal", methods=["POST"])
 def create_meal():
+    auth = verify_key()
+    if auth:
+        return auth
+
     data = request.get_json()
 
     name = data.get("name")
@@ -54,6 +64,9 @@ def create_meal():
 
 @app.route("/meal", methods=["GET"])
 def get_all_meals():
+    auth = verify_key()
+    if auth:
+        return auth
     meals = Meal.query.all()
 
     if meals:
@@ -74,7 +87,10 @@ def get_all_meals():
 
 @app.route("/meal/<int:id_meal>", methods=["GET"])
 def read_meal(id_meal):
-    meal = Meal.query.get(id_meal)
+    auth = verify_key()
+    if auth:
+        return auth
+    meal = db.session.get(Meal, id_meal) 
     if meal:
         return jsonify(
             {
@@ -90,7 +106,10 @@ def read_meal(id_meal):
 
 @app.route("/meal/<int:id_meal>", methods=["DELETE"])
 def delete_meal(id_meal):
-    meal = Meal.query.get(id_meal)
+    auth = verify_key()
+    if auth:
+        return auth
+    meal = db.session.get(Meal, id_meal) 
     if meal:
         db.session.delete(meal)
         db.session.commit()
@@ -101,8 +120,11 @@ def delete_meal(id_meal):
 
 @app.route("/meal/<int:id_meal>", methods=["PUT"])
 def update_meal(id_meal):
+    auth = verify_key()
+    if auth:
+        return auth
     data = request.get_json()
-    meal = Meal.query.get(id_meal)
+    meal = db.session.get(Meal, id_meal)
 
     if data and meal:
         meal.name = data.get("name")
