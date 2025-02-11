@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
-from models.meal import Meal
+from flask_cors import CORS
 from database import db
-from models.schema import MealSchema
+from models.meal import Meal
+from models.schema import MealSchema 
 
 app = Flask(__name__)
+CORS(app, origins=["http://localhost:3000"], methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type", "X-API-KEY"])
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///daily_diet.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 API_KEYS = {"secret-key"}
